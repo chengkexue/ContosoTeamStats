@@ -97,7 +97,9 @@ namespace ContosoTeamStats.Controllers
             {
                 return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
             }
-            Team team = db.Teams.Find(id);
+            //Team team = db.Teams.Find(id);
+            int ID = id.Value;
+            Team team = GetTeamById(ID);
             if (team == null)
             {
                 return HttpNotFound();
@@ -125,6 +127,7 @@ namespace ContosoTeamStats.Controllers
                 // When a team is added, the cache is out of date.
                 // Clear the cached teams.
                 ClearCachedTeams();
+                ClearTeamCacheById(team.ID);
                 return RedirectToAction("Index");
             }
 
@@ -138,7 +141,9 @@ namespace ContosoTeamStats.Controllers
             {
                 return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
             }
-            Team team = db.Teams.Find(id);
+            //Team team = db.Teams.Find(id);
+            int ID = id.Value;
+            Team team = GetTeamById(ID);
             if (team == null)
             {
                 return HttpNotFound();
@@ -160,6 +165,7 @@ namespace ContosoTeamStats.Controllers
                 // When a team is edited, the cache is out of date.
                 // Clear the cached teams.
                 ClearCachedTeams();
+                ClearTeamCacheById(team.ID);
                 return RedirectToAction("Index");
             }
             return View(team);
@@ -172,7 +178,9 @@ namespace ContosoTeamStats.Controllers
             {
                 return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
             }
-            Team team = db.Teams.Find(id);
+            //Team team = db.Teams.Find(id);
+            int ID = id.Value;
+            Team team = GetTeamById(ID);
             if (team == null)
             {
                 return HttpNotFound();
@@ -191,6 +199,7 @@ namespace ContosoTeamStats.Controllers
             // When a team is deleted, the cache is out of date.
             // Clear the cached teams.
             ClearCachedTeams();
+            ClearTeamCacheById(id);
             return RedirectToAction("Index");
         }
 
@@ -258,6 +267,38 @@ namespace ContosoTeamStats.Controllers
                 cache.StringSet("teamsList", JsonConvert.SerializeObject(teams));
             }
             return teams;
+        }
+
+        Team GetTeamById(int ID)
+        {
+            Team team = null;
+
+            IDatabase cache = Connection.GetDatabase();
+            string key = String.Concat("team_", ID.ToString());
+            string serializedTeam = cache.StringGet(key);
+            if (!String.IsNullOrEmpty(serializedTeam))
+            {
+                team = JsonConvert.DeserializeObject<Team>(serializedTeam);
+
+                ViewBag.msg += "A team read from cache. ";
+            }
+            else
+            {
+                ViewBag.msg += "A Team cache miss. ";
+                // Get from database and store in cache
+                team = db.Teams.Find(ID);
+
+                ViewBag.msg += "Storing results to cache. ";
+                cache.StringSet(key, JsonConvert.SerializeObject(team));
+            }
+            return team;
+        }
+
+        void ClearTeamCacheById(int ID)
+        {
+            IDatabase cache = Connection.GetDatabase();
+            cache.KeyDelete(String.Concat("team_", ID.ToString()));
+            ViewBag.msg += "Team data removed from cache. ";
         }
 
         List<Team> GetFromSortedSet()
